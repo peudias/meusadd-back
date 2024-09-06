@@ -3,8 +3,10 @@ const express = require("express");
 const mariadb = require("mariadb");
 const cors = require("cors");
 const path = require("path");
+const bodyParser = require("body-parser");
 
 const app = express();
+app.use(bodyParser.json());
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -32,16 +34,14 @@ pool
 
 app.use(cors());
 
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API funcionando" });
-});
-
 app.get("/api/patogeno", async (req, res) => {
   console.log("Iniciando a consulta na tabela patogeno...");
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT * FROM patogeno");
+    const rows = await conn.query(
+      "SELECT * FROM patogeno as p ORDER BY p.nome_cientifico ASC"
+    );
     console.log("Resultado da consulta:", rows);
     res.json(rows);
   } catch (err) {
@@ -63,6 +63,28 @@ app.get("/api/patogeno/:id", async (req, res) => {
     } else {
       res.json(rows[0]);
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
+app.post("/api/patogeno", async (req, res) => {
+  let conn;
+  const { nome_cientifico, tipo } = req.body;
+  try {
+    conn = await pool.getConnection();
+    const result = await conn.query(
+      "INSERT INTO patogeno (nome_cientifico, tipo) VALUES (?, ?)",
+      [nome_cientifico, tipo]
+    );
+
+    console.log("res = ", result);
+
+    res.json({
+      message: "Patógeno adicionado com sucesso",
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {

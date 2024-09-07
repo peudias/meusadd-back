@@ -35,14 +35,12 @@ pool
 app.use(cors());
 
 app.get("/api/patogeno", async (req, res) => {
-  console.log("Iniciando a consulta na tabela patogeno...");
   let conn;
   try {
     conn = await pool.getConnection();
     const rows = await conn.query(
       "SELECT * FROM patogeno as p ORDER BY p.nome_cientifico ASC"
     );
-    console.log("Resultado da consulta:", rows);
     res.json(rows);
   } catch (err) {
     console.log("Erro durante a consulta:", err.message);
@@ -79,9 +77,6 @@ app.post("/api/patogeno", async (req, res) => {
       "INSERT INTO patogeno (nome_cientifico, tipo) VALUES (?, ?)",
       [nome_cientifico, tipo]
     );
-
-    console.log("res = ", result);
-
     res.json({
       message: "Patógeno adicionado com sucesso",
     });
@@ -96,8 +91,35 @@ app.get("/api/doenca", async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT * FROM doenca");
-    res.json(rows);
+    const doencas = await conn.query("SELECT * FROM doenca");
+
+    const doencasComNomesPopulares = await Promise.all(
+      doencas.map(async (doenca) => {
+        const patogeno = await conn.query(
+          "SELECT * FROM patogeno AS p WHERE p.id = ?",
+          [doenca.patogeno_id]
+        );
+
+        const nomesPopulares = await conn.query(
+          "SELECT nome FROM nomes_populares WHERE doenca_id = ?",
+          [doenca.id]
+        );
+        const nomesPopularesArray =
+          nomesPopulares.length > 0
+            ? nomesPopulares.map((np) => np.nome)
+            : undefined;
+
+        return {
+          id: doenca.id,
+          patogeno: patogeno[0],
+          CID: doenca.CID,
+          nome_tecnico: doenca.nomes_tecnicos,
+          nomes_populares: nomesPopularesArray,
+        };
+      })
+    );
+
+    res.json(doencasComNomesPopulares);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {

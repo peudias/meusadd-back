@@ -136,6 +136,8 @@ app.get("/api/doenca", async (req, res) => {
       })
     );
 
+    logOperation("Consulta", `Consulta das doenças.`);
+
     res.json(doencasComNomesPopulares);
   } catch (err) {
     res.status(500).json({ error: err.message });

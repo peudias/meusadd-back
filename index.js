@@ -1,3 +1,4 @@
+const { logOperation } = require("./utils/log");
 require("dotenv").config();
 const express = require("express");
 const mariadb = require("mariadb");
@@ -42,6 +43,9 @@ app.get("/api/patogeno", async (req, res) => {
     const rows = await conn.query(
       "SELECT * FROM patogeno as p ORDER BY p.nome_cientifico ASC"
     );
+
+    logOperation("Consulta", "Consulta realizada na tabela patogeno.");
+
     console.log("Resultado da consulta:", rows);
     res.json(rows);
   } catch (err) {
@@ -58,10 +62,16 @@ app.get("/api/patogeno/:id", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM patogeno WHERE id = ?", [id]);
+
     if (rows.length === 0) {
       res.status(404).json({ message: "Patógeno não encontrado" });
     } else {
       res.json(rows[0]);
+
+      logOperation(
+        "Consulta",
+        `Consulta realizada para o patógeno com ID ${id}`
+      );
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -80,7 +90,10 @@ app.post("/api/patogeno", async (req, res) => {
       [nome_cientifico, tipo]
     );
 
-    console.log("res = ", result);
+    logOperation(
+      "Cadastro",
+      `Cadastro de patógeno: ${nome_cientifico}, ${tipo}`
+    );
 
     res.json({
       message: "Patógeno adicionado com sucesso",
@@ -97,6 +110,9 @@ app.get("/api/doenca", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM doenca");
+
+    logOperation("Consulta", "Consulta realizada na tabela doenca.");
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,6 +126,9 @@ app.get("/api/sintoma", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM sintoma");
+
+    logOperation("Consulta", "Consulta realizada na tabela sintoma.");
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -123,6 +142,9 @@ app.get("/api/nomes_populares", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM nomes_populares");
+
+    logOperation("Consulta", "Consulta realizada na tabela nomes_populares.");
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

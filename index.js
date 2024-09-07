@@ -36,7 +36,6 @@ pool
 app.use(cors());
 
 app.get("/api/patogeno", async (req, res) => {
-  console.log("Iniciando a consulta na tabela patogeno...");
   let conn;
   try {
     conn = await pool.getConnection();
@@ -109,11 +108,35 @@ app.get("/api/doenca", async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT * FROM doenca");
+    const doencas = await conn.query("SELECT * FROM doenca");
 
-    logOperation("Consulta", "Consulta realizada na tabela doenca.");
+    const doencasComNomesPopulares = await Promise.all(
+      doencas.map(async (doenca) => {
+        const patogeno = await conn.query(
+          "SELECT * FROM patogeno AS p WHERE p.id = ?",
+          [doenca.patogeno_id]
+        );
 
-    res.json(rows);
+        const nomesPopulares = await conn.query(
+          "SELECT nome FROM nomes_populares WHERE doenca_id = ?",
+          [doenca.id]
+        );
+        const nomesPopularesArray =
+          nomesPopulares.length > 0
+            ? nomesPopulares.map((np) => np.nome)
+            : undefined;
+
+        return {
+          id: doenca.id,
+          patogeno: patogeno[0],
+          CID: doenca.CID,
+          nome_tecnico: doenca.nomes_tecnicos,
+          nomes_populares: nomesPopularesArray,
+        };
+      })
+    );
+
+    res.json(doencasComNomesPopulares);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {

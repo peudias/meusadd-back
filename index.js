@@ -245,6 +245,21 @@ app.get("/api/sintoma/:id", async (req, res) => {
   }
 });
 
+app.get("/api/sintoma", async (req, res) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query(
+      "SELECT DISTINCT nome FROM sintoma AS s ORDER BY s.nome ASC"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
 app.get("/api/nomes_populares", async (req, res) => {
   let conn;
   try {
@@ -269,6 +284,50 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(__dirname, "build", "index.html"));
   });
 }
+
+app.post("/api/doenca/diagnostico", async (req, res) => {
+  let conn;
+  const { sintomas } = req.body;
+
+  if (!Array.isArray(sintomas) || sintomas.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Sintomas devem ser um array de strings." });
+  }
+
+  try {
+    conn = await pool.getConnection();
+    let joinConditions = "";
+    let whereConditions = "";
+
+    sintomas.forEach((sintoma, index) => {
+      const alias = `s${index + 1}`;
+
+      joinConditions += `JOIN sintoma AS ${alias} ON ${alias}.doenca_id = d.id `;
+      whereConditions += `${alias}.nome = '${sintoma}' `;
+      if (index < sintomas.length - 1) {
+        whereConditions += "AND ";
+      }
+    });
+
+    const query = `
+      SELECT d.id, d.nomes_tecnicos
+      FROM doenca AS d
+      ${joinConditions}
+      WHERE ${whereConditions}
+      GROUP BY d.nomes_tecnicos
+      ORDER BY d.nomes_tecnicos;
+    `;
+
+    const rows = await conn.query(query, sintomas);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => {

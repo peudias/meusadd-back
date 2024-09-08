@@ -127,6 +127,50 @@ app.get("/api/doenca", async (req, res) => {
   }
 });
 
+app.post("/api/doenca", async (req, res) => {
+  let conn;
+  const { CID, nome_tecnico, nomes_populares, patogeno } = req.body;
+
+  try {
+    conn = await pool.getConnection();
+
+    const cidExists = await conn.query("SELECT * FROM doenca WHERE CID = ?", [
+      CID,
+    ]);
+
+    if (cidExists.length > 0) {
+      return res.status(409).json({
+        error: "CID já existente. Não é possível inserir duplicatas.",
+      });
+    }
+
+    const result = await conn.query(
+      "INSERT INTO doenca (patogeno_id, CID, nomes_tecnicos) VALUES (?, ?, ?)",
+      [patogeno, CID, nome_tecnico]
+    );
+
+    const idDoenca = result.insertId;
+
+    if (nomes_populares && nomes_populares.length > 0) {
+      const insertPromises = nomes_populares.map((nomePopular) => {
+        conn.query(
+          "INSERT INTO nomes_populares (doenca_id, nome) VALUES (?, ?)",
+          [idDoenca, nomePopular]
+        );
+      });
+      await Promise.all(insertPromises);
+    }
+
+    res.json({
+      message: "Doença adicionada com sucesso",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
 app.get("/api/sintoma", async (req, res) => {
   let conn;
   try {

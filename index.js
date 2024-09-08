@@ -284,6 +284,7 @@ app.get("/api/sintoma", async (req, res) => {
     const rows = await conn.query(
       "SELECT DISTINCT nome FROM sintoma AS s ORDER BY s.nome ASC"
     );
+    logOperation("Consulta", "Consulta realizada na tabela sintoma.");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -360,6 +361,7 @@ app.post("/api/doenca/diagnostico", async (req, res) => {
 
     const rows = await conn.query(query, sintomas);
 
+    logOperation("Consulta", "Consulta Apoio ao Diagnóstico.");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

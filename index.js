@@ -132,6 +132,7 @@ app.get("/api/doenca/:id", async (req, res) => {
   const { id } = req.params;
   try {
     conn = await pool.getConnection();
+    console.log("ENTORU");
     const rows = await conn.query("SELECT * FROM doenca AS d WHERE d.id = ?", [
       id,
     ]);
@@ -149,7 +150,7 @@ app.get("/api/doenca/:id", async (req, res) => {
 
 app.post("/api/doenca", async (req, res) => {
   let conn;
-  const { CID, nome_tecnico, nomes_populares, patogeno } = req.body;
+  const { CID, nomes_tecnicos, nomes_populares, patogeno } = req.body;
 
   try {
     conn = await pool.getConnection();
@@ -166,7 +167,7 @@ app.post("/api/doenca", async (req, res) => {
 
     const result = await conn.query(
       "INSERT INTO doenca (patogeno_id, CID, nomes_tecnicos) VALUES (?, ?, ?)",
-      [patogeno, CID, nome_tecnico]
+      [patogeno, CID, nomes_tecnicos]
     );
 
     const idDoenca = result.insertId;

@@ -121,6 +121,20 @@ app.get("/api/doenca", async (req, res) => {
           "SELECT nome FROM nomes_populares WHERE doenca_id = ?",
           [doenca.id]
         );
+
+        const sintomas = await conn.query(
+          "SELECT * FROM sintoma AS s WHERE s.doenca_id = ?",
+          [doenca.id]
+        );
+
+        const sintomasArray =
+          sintomas.length > 0
+            ? sintomas.map((s) => ({
+                nome: s.nome,
+                nivel_de_ocorrencia: s.nivel_de_ocorrencia,
+              }))
+            : undefined;
+
         const nomesPopularesArray =
           nomesPopulares.length > 0
             ? nomesPopulares.map((np) => np.nome)
@@ -130,13 +144,14 @@ app.get("/api/doenca", async (req, res) => {
           id: doenca.id,
           patogeno: patogeno[0],
           CID: doenca.CID,
-          nome_tecnico: doenca.nomes_tecnicos,
+          nomes_tecnicos: doenca.nomes_tecnicos,
           nomes_populares: nomesPopularesArray,
+          sintomas: sintomasArray,
         };
       })
     );
 
-    logOperation("Consulta", `Consulta das doenças.`);
+    logOperation("Consulta", `Consulta realizada na tabela doenca.`);
 
     res.json(doencasComNomesPopulares);
   } catch (err) {
@@ -146,11 +161,111 @@ app.get("/api/doenca", async (req, res) => {
   }
 });
 
-app.get("/api/sintoma", async (req, res) => {
+app.get("/api/doenca/:id", async (req, res) => {
   let conn;
+  const { id } = req.params;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT * FROM sintoma");
+    const rows = await conn.query("SELECT * FROM doenca AS d WHERE d.id = ?", [
+      id,
+    ]);
+    if (rows.length === 0) {
+      res.status(404).json({ message: "Doença não encontrado" });
+    } else {
+      logOperation("Consulta", `Consulta de doença com id: ${id}`);
+      res.json(rows[0]);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
+app.post("/api/doenca", async (req, res) => {
+  let conn;
+  const { CID, nomes_tecnicos, nomes_populares, patogeno } = req.body;
+
+  try {
+    conn = await pool.getConnection();
+
+    const cidExists = await conn.query("SELECT * FROM doenca WHERE CID = ?", [
+      CID,
+    ]);
+
+    if (cidExists.length > 0) {
+      return res.status(409).json({
+        error: "CID já existente. Não é possível inserir duplicatas.",
+      });
+    }
+
+    const result = await conn.query(
+      "INSERT INTO doenca (patogeno_id, CID, nomes_tecnicos) VALUES (?, ?, ?)",
+      [patogeno, CID, nomes_tecnicos]
+    );
+
+    const idDoenca = result.insertId;
+
+    if (nomes_populares && nomes_populares.length > 0) {
+      const insertPromises = nomes_populares.map((nomePopular) => {
+        conn.query(
+          "INSERT INTO nomes_populares (doenca_id, nome) VALUES (?, ?)",
+          [idDoenca, nomePopular]
+        );
+      });
+      await Promise.all(insertPromises);
+    }
+
+    logOperation(
+      "Cadastro",
+      `Cadastro da doença de nome técnico ${nomes_tecnicos}, nome popular ${nomes_populares}, com patógeno ${patogeno} e CID ${CID}`
+    );
+
+    res.json({
+      message: "Doença adicionada com sucesso",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
+app.post("/api/sintoma/:id", async (req, res) => {
+  let conn;
+  const { nome, nivel_de_ocorrencia } = req.body;
+  const { id } = req.params;
+  try {
+    conn = await pool.getConnection();
+
+    const result = await conn.query(
+      "INSERT INTO sintoma (doenca_id, nome, nivel_de_ocorrencia) VALUES (?, ?, ?)",
+      [id, nome, nivel_de_ocorrencia]
+    );
+
+    logOperation(
+      "Cadastro",
+      `Cadastro de sintoma de nome ${nome} e nível de ocorrência ${nivel_de_ocorrencia}.`
+    );
+
+    res.json({
+      message: "Doença adicionada com sucesso",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
+app.get("/api/sintoma/:id", async (req, res) => {
+  let conn;
+  const { id } = req.params;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query("SELECT * FROM sintoma WHERE doenca_id = ?", [
+      id,
+    ]);
 
     logOperation("Consulta", "Consulta realizada na tabela sintoma.");
 

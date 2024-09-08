@@ -113,13 +113,33 @@ app.get("/api/doenca", async (req, res) => {
           id: doenca.id,
           patogeno: patogeno[0],
           CID: doenca.CID,
-          nome_tecnico: doenca.nomes_tecnicos,
+          nomes_tecnicos: doenca.nomes_tecnicos,
           nomes_populares: nomesPopularesArray,
         };
       })
     );
 
     res.json(doencasComNomesPopulares);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (conn) conn.end();
+  }
+});
+
+app.get("/api/doenca/:id", async (req, res) => {
+  let conn;
+  const { id } = req.params;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query("SELECT * FROM doenca AS d WHERE d.id = ?", [
+      id,
+    ]);
+    if (rows.length === 0) {
+      res.status(404).json({ message: "Doença não encontrado" });
+    } else {
+      res.json(rows[0]);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
@@ -171,11 +191,15 @@ app.post("/api/doenca", async (req, res) => {
   }
 });
 
-app.get("/api/sintoma", async (req, res) => {
+app.get("/api/sintoma/:id", async (req, res) => {
   let conn;
+  const { id } = req.params;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT * FROM sintoma");
+    const rows = await conn.query("SELECT * FROM sintoma WHERE doenca_id = ?", [
+      id,
+    ]);
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -293,6 +293,10 @@ app.get("/api/nomes_populares", async (req, res) => {
   }
 });
 
+app.get("/api/log", async () => {
+  logOperation("Emissão", "Emissão de Relatório PDF.");
+});
+
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "build")));
 

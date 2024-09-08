@@ -1,3 +1,4 @@
+const { logOperation } = require("./utils/log");
 require("dotenv").config();
 const express = require("express");
 const mariadb = require("mariadb");
@@ -41,6 +42,10 @@ app.get("/api/patogeno", async (req, res) => {
     const rows = await conn.query(
       "SELECT * FROM patogeno as p ORDER BY p.nome_cientifico ASC"
     );
+
+    logOperation("Consulta", "Consulta realizada na tabela patogeno.");
+
+    console.log("Resultado da consulta:", rows);
     res.json(rows);
   } catch (err) {
     console.log("Erro durante a consulta:", err.message);
@@ -56,10 +61,16 @@ app.get("/api/patogeno/:id", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM patogeno WHERE id = ?", [id]);
+
     if (rows.length === 0) {
       res.status(404).json({ message: "Patógeno não encontrado" });
     } else {
       res.json(rows[0]);
+
+      logOperation(
+        "Consulta",
+        `Consulta realizada para o patógeno com ID ${id}`
+      );
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -77,6 +88,12 @@ app.post("/api/patogeno", async (req, res) => {
       "INSERT INTO patogeno (nome_cientifico, tipo) VALUES (?, ?)",
       [nome_cientifico, tipo]
     );
+
+    logOperation(
+      "Cadastro",
+      `Cadastro de patógeno: ${nome_cientifico}, ${tipo}`
+    );
+
     res.json({
       message: "Patógeno adicionado com sucesso",
     });
@@ -134,6 +151,8 @@ app.get("/api/doenca", async (req, res) => {
       })
     );
 
+    logOperation("Consulta", `Consulta realizada na tabela doenca.`);
+
     res.json(doencasComNomesPopulares);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -153,6 +172,7 @@ app.get("/api/doenca/:id", async (req, res) => {
     if (rows.length === 0) {
       res.status(404).json({ message: "Doença não encontrado" });
     } else {
+      logOperation("Consulta", `Consulta de doença com id: ${id}`);
       res.json(rows[0]);
     }
   } catch (err) {
@@ -196,6 +216,11 @@ app.post("/api/doenca", async (req, res) => {
       await Promise.all(insertPromises);
     }
 
+    logOperation(
+      "Cadastro",
+      `Cadastro da doença de nome técnico ${nomes_tecnicos}, nome popular ${nomes_populares}, com patógeno ${patogeno} e CID ${CID}`
+    );
+
     res.json({
       message: "Doença adicionada com sucesso",
     });
@@ -218,6 +243,11 @@ app.post("/api/sintoma/:id", async (req, res) => {
       [id, nome, nivel_de_ocorrencia]
     );
 
+    logOperation(
+      "Cadastro",
+      `Cadastro de sintoma de nome ${nome} e nível de ocorrência ${nivel_de_ocorrencia}.`
+    );
+
     res.json({
       message: "Doença adicionada com sucesso",
     });
@@ -236,6 +266,8 @@ app.get("/api/sintoma/:id", async (req, res) => {
     const rows = await conn.query("SELECT * FROM sintoma WHERE doenca_id = ?", [
       id,
     ]);
+
+    logOperation("Consulta", "Consulta realizada na tabela sintoma.");
 
     res.json(rows);
   } catch (err) {
@@ -265,12 +297,19 @@ app.get("/api/nomes_populares", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query("SELECT * FROM nomes_populares");
+
+    logOperation("Consulta", "Consulta realizada na tabela nomes_populares.");
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
     if (conn) conn.end();
   }
+});
+
+app.get("/api/log", async () => {
+  logOperation("Emissão", "Emissão de Relatório PDF.");
 });
 
 if (process.env.NODE_ENV === "production") {

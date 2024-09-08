@@ -104,6 +104,20 @@ app.get("/api/doenca", async (req, res) => {
           "SELECT nome FROM nomes_populares WHERE doenca_id = ?",
           [doenca.id]
         );
+
+        const sintomas = await conn.query(
+          "SELECT * FROM sintoma AS s WHERE s.doenca_id = ?",
+          [doenca.id]
+        );
+
+        const sintomasArray =
+          sintomas.length > 0
+            ? sintomas.map((s) => ({
+                nome: s.nome,
+                nivel_de_ocorrencia: s.nivel_de_ocorrencia,
+              }))
+            : undefined;
+
         const nomesPopularesArray =
           nomesPopulares.length > 0
             ? nomesPopulares.map((np) => np.nome)
@@ -115,6 +129,7 @@ app.get("/api/doenca", async (req, res) => {
           CID: doenca.CID,
           nomes_tecnicos: doenca.nomes_tecnicos,
           nomes_populares: nomesPopularesArray,
+          sintomas: sintomasArray,
         };
       })
     );
@@ -132,7 +147,6 @@ app.get("/api/doenca/:id", async (req, res) => {
   const { id } = req.params;
   try {
     conn = await pool.getConnection();
-    console.log("ENTORU");
     const rows = await conn.query("SELECT * FROM doenca AS d WHERE d.id = ?", [
       id,
     ]);
@@ -148,39 +162,17 @@ app.get("/api/doenca/:id", async (req, res) => {
   }
 });
 
-app.post("/api/doenca", async (req, res) => {
+app.post("/api/sintoma/:id", async (req, res) => {
   let conn;
-  const { CID, nomes_tecnicos, nomes_populares, patogeno } = req.body;
-
+  const { nome, nivel_de_ocorrencia } = req.body;
+  const { id } = req.params;
   try {
     conn = await pool.getConnection();
 
-    const cidExists = await conn.query("SELECT * FROM doenca WHERE CID = ?", [
-      CID,
-    ]);
-
-    if (cidExists.length > 0) {
-      return res.status(409).json({
-        error: "CID já existente. Não é possível inserir duplicatas.",
-      });
-    }
-
     const result = await conn.query(
-      "INSERT INTO doenca (patogeno_id, CID, nomes_tecnicos) VALUES (?, ?, ?)",
-      [patogeno, CID, nomes_tecnicos]
+      "INSERT INTO sintoma (doenca_id, nome, nivel_de_ocorrencia) VALUES (?, ?, ?)",
+      [id, nome, nivel_de_ocorrencia]
     );
-
-    const idDoenca = result.insertId;
-
-    if (nomes_populares && nomes_populares.length > 0) {
-      const insertPromises = nomes_populares.map((nomePopular) => {
-        conn.query(
-          "INSERT INTO nomes_populares (doenca_id, nome) VALUES (?, ?)",
-          [idDoenca, nomePopular]
-        );
-      });
-      await Promise.all(insertPromises);
-    }
 
     res.json({
       message: "Doença adicionada com sucesso",

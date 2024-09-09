@@ -321,7 +321,53 @@ app.post("/api/doenca/diagnostico", async (req, res) => {
 
     const rows = await conn.query(query, sintomas);
 
-    res.json(rows);
+    const doencasDeAcordoComSintomas = await Promise.all(
+      rows.map(async (doenca) => {
+        const doencaCompleta = await conn.query(
+          "SELECT * FROM doenca AS d WHERE d.id = ?",
+          [doenca.id]
+        );
+
+        const patogeno = await conn.query(
+          "SELECT * FROM patogeno AS p WHERE p.id = ?",
+          [doencaCompleta[0].patogeno_id]
+        );
+
+        const nomesPopulares = await conn.query(
+          "SELECT nome FROM nomes_populares WHERE doenca_id = ?",
+          [doencaCompleta[0].id]
+        );
+
+        const sintomas = await conn.query(
+          "SELECT * FROM sintoma AS s WHERE s.doenca_id = ?",
+          [doencaCompleta[0].id]
+        );
+
+        const sintomasArray =
+          sintomas.length > 0
+            ? sintomas.map((s) => ({
+                nome: s.nome,
+                nivel_de_ocorrencia: s.nivel_de_ocorrencia,
+              }))
+            : undefined;
+
+        const nomesPopularesArray =
+          nomesPopulares.length > 0
+            ? nomesPopulares.map((np) => np.nome)
+            : undefined;
+
+        return {
+          id: doencaCompleta[0].id,
+          patogeno: patogeno[0],
+          CID: doencaCompleta[0].CID,
+          nomes_tecnicos: doencaCompleta[0].nomes_tecnicos,
+          nomes_populares: nomesPopularesArray,
+          sintomas: sintomasArray,
+        };
+      })
+    );
+
+    res.json(doencasDeAcordoComSintomas);
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {

@@ -6,7 +6,7 @@ Acesse o front do projeto: [meusadd-front](https://github.com/peudias/bd-lpr)
 
 Para rodar o projeto `local` é necessário alterar o [.env](https://github.com/peudias/meusadd-back/blob/main/.env) com as credenciais para seu banco de dados.
 
-Após isso rodar o comando `npm start`
+Após isso rodar o comando `npm i`e `npm start`
 
 ## Rotas
 
